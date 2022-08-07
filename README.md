@@ -1,5 +1,10 @@
 # MIT6.824
 
+- [x] lab1 mr
+- [ ] lab2 raft
+- [ ] lab3 kvraft
+- [ ] lab4 shardkv
+
 ## lab1 MapReduce
 
 **mapreduce论文**
