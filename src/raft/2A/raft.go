@@ -344,21 +344,16 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	// start ticker goroutine to start elections
 	go rf.ticker()
 
-
 	return rf
 }
 
-/**
-* 重置节点的超时选举时间
-*/
+
 func (rf *Raft) resetElectionTimer() {
 	t := time.Now()
 	electedTime := time.Duration(150 + rand.Intn(150)) * time.Millisecond
 	rf.electedTime = t.Add(electedTime)
 }
-/**
-* 达到超时选举时间，进行leader选举
-*/
+
 func (rf *Raft) leaderElection() {
 	rf.term++
 	rf.state = Candidate
@@ -378,9 +373,8 @@ func (rf *Raft) leaderElection() {
 		}
 	}
 }
-/**
-* 候选者发起投票
-*/
+
+
 func (rf *Raft) candidateRequestVote(serverId int, args *RequestVoteArgs, voteCounte *int, becomeLeader *sync.Once) {
 	DPrintf("[%d]: term %v send vote request to %d\n", rf.me, args.Term, serverId)
 	reply := RequestVoteReply{}
@@ -410,7 +404,6 @@ func (rf *Raft) candidateRequestVote(serverId int, args *RequestVoteArgs, voteCo
 	if *voteCounte > len(rf.peers) / 2 && rf.term == args.Term && rf.state == Candidate {
 		DPrintf("[%d]: 获得多数票，可以提前结束\n", rf.me)
 		becomeLeader.Do(func() {
-			DPrintf("[%d]: 当前term %d 结束\n", rf.me, rf.term)
 			rf.state = Leader
 		})
 	}
