@@ -1,14 +1,11 @@
 make --dry-run --always-make --keep-going --print-directory
 make: Entering directory '/usr/local/6.824/6.824'
- 
 Checking that your submission builds correctly...
+rm check-Makefile
+make: Leaving directory '/usr/local/6.824/6.824'
  
 make: execvp: ./.check-build: Permission denied
-
 make: *** [Makefile:45: check-Makefile] Error 127
 make: Failed to remake makefile 'Makefile'.
 make: *** No targets specified and no makefile found.  Stop.
 
-rm check-Makefile
-make: Leaving directory '/usr/local/6.824/6.824'
- 
