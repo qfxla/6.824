@@ -80,10 +80,7 @@ type Raft struct {
 	heartBeat     time.Duration
 }
 
-type AppendEntriesArgs struct {
-	Term 	 int
-	LeaderId int
-}
+
 
 // return currentTerm and whether this server
 // believes it is the leader.
@@ -165,6 +162,9 @@ type RequestVoteArgs struct {
 	// Your data here (2A, 2B).
 	Term   		int
 	CandidateId	int
+
+	LastLogIndex int
+	LastLogTerm  int
 }
 
 //
@@ -177,6 +177,16 @@ type RequestVoteReply struct {
 	VoteGranted bool
 }
 
+
+type AppendEntriesArgs struct {
+	Term 	 int
+	LeaderId int
+
+	PrevLogIndex int
+	PrevLogTerm  int
+	Entries []int
+	LeaderCommit int
+}
 type AppendEntriesReply struct {
 	Term     int
 	Success  bool
