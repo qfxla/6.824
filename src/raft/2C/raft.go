@@ -18,6 +18,8 @@ package raft
 //
 
 import (
+	"6.824/labgob"
+	"bytes"
 	//	"bytes"
 	"sync"
 	"sync/atomic"
@@ -110,33 +112,30 @@ func (rf *Raft) GetState() (int, bool) {
 // see paper's Figure 2 for a description of what should be persistent.
 func (rf *Raft) persist() {
 	// Your code here (2C).
-	// Example:
-	// w := new(bytes.Buffer)
-	// e := labgob.NewEncoder(w)
-	// e.Encode(rf.xxx)
-	// e.Encode(rf.yyy)
-	// data := w.Bytes()
-	// rf.persister.SaveRaftState(data)
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+
+	e.Encode(rf.currentTerm)
+	e.Encode(rf.voteFor)
+	e.Encode(rf.log)
+	data := w.Bytes()
+	rf.persister.SaveRaftState(data)
 }
 
 // restore previously persisted state.
 func (rf *Raft) readPersist(data []byte) {
-	if data == nil || len(data) < 1 { // bootstrap without any state?
+	//// Your code here (2C).
+	if data == nil || len(data) < 1 {
 		return
 	}
-	// Your code here (2C).
-	// Example:
-	// r := bytes.NewBuffer(data)
-	// d := labgob.NewDecoder(r)
-	// var xxx
-	// var yyy
-	// if d.Decode(&xxx) != nil ||
-	//    d.Decode(&yyy) != nil {
-	//   error...
-	// } else {
-	//   rf.xxx = xxx
-	//   rf.yyy = yyy
-	// }
+	r := bytes.NewBuffer(data)
+	d := labgob.NewDecoder(r)
+
+	rf.mu.Lock()
+	d.Decode(&rf.currentTerm)
+	d.Decode(&rf.voteFor)
+	d.Decode(&rf.log)
+	rf.mu.Unlock()
 }
 
 // A service wants to switch to snapshot.  Only do so if Raft hasn't
@@ -185,6 +184,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		rf.matchIndex[rf.me] = index
 		rf.nextIndex[rf.me] = index + 1
 	}
+	rf.persist()
 	return index, term, isLeader
 }
 
@@ -262,7 +262,6 @@ func Make(peers []*labrpc.ClientEnd, me int,
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
-
 	return rf
 }
 
@@ -306,11 +305,13 @@ func (rf *Raft) switchStateTo(state RaftState) {
 		rf.appendEntries()
 		rf.heartbeatTimer.Reset(HEART_BEAT_TIMEOUT * time.Millisecond)
 	}
+	rf.persist()
 }
 
 func (rf *Raft) leaderElection() {
 	rf.currentTerm += 1
 	rf.votedFor = rf.me //vote for me
+
 	rf.voteCount = 1
 	rf.electionTimer.Reset(randTimeDuration())
 
@@ -342,33 +343,8 @@ func (rf *Raft) leaderElection() {
 			}(i)
 		}
 	}
-
+	rf.persist()
 }
-
-// func (rf *Raft) candidateRequestVote(serverId int, args *RequestVoteArgs, voteCounte *int, becomeLeader *sync.Once) {
-// 	reply := RequestVoteReply{}
-
-// 	if rf.sendRequestVote(serverId, args, & reply) {
-// 		rf.mu.Lock()
-// 		defer rf.mu.Unlock()
-// 		if reply.Term > args.Term {
-// 			rf.currentTerm = reply.Term
-//             rf.switchStateTo(Follower)
-// 		}
-// 		if reply.Term < args.Term {
-// 			return
-// 		}
-
-// 		if reply.VoteGranted && rf.state == Candidate {
-// 			*voteCounte++
-// 			if *voteCounte > len(rf.peers) / 2 {
-// 				becomeLeader.Do(func() {
-// 					rf.state = Leader
-// 				})
-// 			}
-// 		}
-// 	}
-// }
 
 func min(x, y int) int {
 	if x < y {

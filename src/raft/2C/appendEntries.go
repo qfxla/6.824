@@ -11,6 +11,9 @@ type AppendEntriesArgs struct {
 type AppendEntriesReply struct {
 	Term    int
 	Success bool
+
+	ConflictTerm  int
+	ConflictIndex int
 }
 
 func (rf *Raft) appendEntries() {
@@ -79,13 +82,24 @@ func (rf *Raft) leaderSendEntries(serverId int) {
 			if reply.Term > rf.currentTerm {
 				rf.currentTerm = reply.Term
 				rf.state = Follower
-			} else {
+			} else { // 对应Append的2、3
 				// 如果走到这个这里，那就往前推，找到彼此匹配的index
-				rf.nextIndex[serverId] = args.PrevLogIndex - 1
+				//rf.nextIndex[serverId] = args.PrevLogIndex - 1
+				rf.nextIndex[serverId] = reply.ConflictIndex
+
+				if reply.ConflictTerm != -1 {
+					for i := args.PrevLogIndex; i >= 1; i-- {
+						if rf.log[i-1].Term == reply.ConflictTerm {
+							rf.nextIndex[serverId] = i
+							break
+						}
+					}
+				}
 			}
 		}
 		rf.mu.Unlock()
 	}
+	rf.persist()
 }
 
 func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *AppendEntriesReply) bool {
@@ -97,7 +111,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	reply.Success = true
-
 	// 1. Reply false if term < currentTerm
 	if args.Term < rf.currentTerm {
 		reply.Success = false
@@ -115,19 +128,27 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 
 	// 2. Reply false if log does not contain an entry at prevLogIndex
 	// whose term matches prevLogTerm (5.3)
+	// args.PrevLogIndex一开始最大是Leader的len(log)+1,如果比从机大，那就-1 或后期len
 	lastLogIndex := len(rf.log) - 1
 	if lastLogIndex < args.PrevLogIndex {
 		reply.Success = false
 		reply.Term = rf.currentTerm
+
+		reply.ConflictTerm = -1
+		reply.ConflictIndex = len(rf.log)
 		return
 	}
 
 	// 3. If an existing entry conflicts with a new one (same index
 	// but diffent term), delete the existing entry and all that
 	// follow it (5.3)
+	// 日志长度能匹配上了，但是对应的term不一样，那也不行
 	if rf.log[(args.PrevLogIndex)].Term != args.PrevLogTerm {
 		reply.Success = false
 		reply.Term = rf.currentTerm
+
+		reply.ConflictTerm = rf.log[args.PrevLogIndex].Term
+		reply.ConflictIndex = -1
 		return
 	}
 
@@ -156,6 +177,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	}
 
 	reply.Success = true
+	rf.persist()
 }
 
 // serveral setters, should be called with a lock
