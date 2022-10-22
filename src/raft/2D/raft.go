@@ -94,6 +94,9 @@ type Raft struct {
 	nextIndex  []int //for each server, index of the next log entry to send to that server (initialized to leader last log index + 1)
 	matchIndex []int //for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)
 
+	lastIncludeIndex int // 快照中最后一个log的index
+	lastIncludeTerm  int
+	//snapshot         []byte
 }
 
 // return currentTerm and whether this server
@@ -136,24 +139,6 @@ func (rf *Raft) readPersist(data []byte) {
 	d.Decode(&rf.voteFor)
 	d.Decode(&rf.log)
 	rf.mu.Unlock()
-}
-
-// A service wants to switch to snapshot.  Only do so if Raft hasn't
-// have more recent info since it communicate the snapshot on applyCh.
-func (rf *Raft) CondInstallSnapshot(lastIncludedTerm int, lastIncludedIndex int, snapshot []byte) bool {
-
-	// Your code here (2D).
-
-	return true
-}
-
-// the service says it has created a snapshot that has
-// all info up to and including index. this means the
-// service no longer needs the log through (and including)
-// that index. Raft should now trim its log as much as possible.
-func (rf *Raft) Snapshot(index int, snapshot []byte) {
-	// Your code here (2D).
-
 }
 
 // the service using Raft (e.g. a k/v server) wants to start

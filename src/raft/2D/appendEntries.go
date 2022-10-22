@@ -1,5 +1,7 @@
 package raft
 
+import "fmt"
+
 type AppendEntriesArgs struct {
 	Term         int        //leader’s term
 	LeaderId     int        //so follower can redirect clients
@@ -31,8 +33,19 @@ func (rf *Raft) leaderSendEntries(serverId int) {
 		return
 	}
 	prevLogIndex := rf.nextIndex[serverId] - 1
+
+	if prevLogIndex <= rf.lastIncludeIndex {
+		go rf.sendSnapshot(serverId, rf.peers[serverId], InstallSnapshotArgs{
+			Term:             rf.currentTerm,
+			LastIncludeIndex: rf.lastIncludeIndex,
+			LastIncludeTerm:  rf.log[0].Term,
+			Data:             rf.persister.snapshot,
+		})
+	}
+
 	// use deep copy to avoid race condition
 	// when override log in AppendEntries()
+	fmt.Println("rf- ", rf.me, " len(log):", len(rf.log), " , index0:", rf.lastIncludeIndex, "prevLogIndex:", prevLogIndex)
 	entries := make([]LogEntry, len(rf.log[(prevLogIndex+1):]))
 	copy(entries, rf.log[(prevLogIndex+1):])
 	args := AppendEntriesArgs{
